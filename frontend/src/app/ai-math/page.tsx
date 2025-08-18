@@ -377,6 +377,10 @@ function AiMathPage() {
   const audioCtxRef = useRef<AudioContext | null>(null);
   const scriptNodeRef = useRef<ScriptProcessorNode | AudioWorkletNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  // Live frequency indicator
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const rafIdRef = useRef<number | null>(null);
+  const [freqHz, setFreqHz] = useState<number | null>(null);
   const pcmChunksRef = useRef<Float32Array[]>([]);
   const sampleRateRef = useRef<number>(16000);
   const ttsVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
@@ -1170,6 +1174,14 @@ function AiMathPage() {
   // Allow a brief flush window for any pending worklet frames to be delivered
   await new Promise((r) => setTimeout(r, 150));
   try { node?.disconnect(); } catch {}
+  // Stop frequency analysis
+  try { analyserRef.current?.disconnect(); } catch {}
+  analyserRef.current = null;
+  if (rafIdRef.current != null) {
+    cancelAnimationFrame(rafIdRef.current);
+    rafIdRef.current = null;
+  }
+  setFreqHz(null);
   if (ctx) await ctx.close().catch(() => undefined);
         scriptNodeRef.current = null;
         audioCtxRef.current = null;
@@ -1224,6 +1236,33 @@ function AiMathPage() {
       sampleRateRef.current = ctx.sampleRate || sampleRateRef.current;
       const source = ctx.createMediaStreamSource(stream);
       pcmChunksRef.current = [];
+      // Set up frequency analyser (dominant FFT peak)
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 2048; // frequencyBinCount = 1024
+      source.connect(analyser);
+      analyserRef.current = analyser;
+      // Start RAF loop to update frequency while recording
+      const freqData = new Uint8Array(analyser.frequencyBinCount);
+      const updateFreq = () => {
+        try {
+          analyser.getByteFrequencyData(freqData);
+          // Find peak bin
+          let maxVal = 0;
+          let maxIdx = 0;
+          for (let i = 0; i < freqData.length; i++) {
+            const v = freqData[i];
+            if (v > maxVal) { maxVal = v; maxIdx = i; }
+          }
+          const nyquist = ctx.sampleRate / 2;
+          const binWidth = nyquist / freqData.length;
+          const hz = maxVal > 8 ? Math.round(maxIdx * binWidth) : 0; // noise threshold ~8
+          setFreqHz(hz > 0 ? hz : null);
+        } catch {
+          // ignore one-off errors during teardown
+        }
+        rafIdRef.current = requestAnimationFrame(updateFreq);
+      };
+      rafIdRef.current = requestAnimationFrame(updateFreq);
       // Try AudioWorklet first
       try {
         if (!('audioWorklet' in ctx)) throw new Error('No audioWorklet');
@@ -1403,13 +1442,22 @@ function AiMathPage() {
               <div className="relative w-full">
                 <Input
                   type="text"
-                  className="w-full rounded-full border-2 border-blue-400/60 pl-4 pr-20 py-2 text-base font-quicksand focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-900/40 text-blue-100 shadow-lg placeholder:text-blue-100/80"
+                  className="w-full rounded-full border-2 border-blue-400/60 pl-4 pr-52 py-2 text-base font-quicksand focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-900/40 text-blue-100 shadow-lg placeholder:text-blue-100/80"
                   placeholder={`Have Doubts? Ask AI`}
                   value={input}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
                   required
                   style={{ boxShadow: '0 0 8px #6366f1cc' }}
                 />
+                {isRecording && (
+                  <div
+                    className="absolute right-44 top-1/2 -translate-y-1/2 text-xs text-blue-100 bg-blue-800/50 px-2 py-0.5 rounded-full border border-blue-300/40 shadow"
+                    style={{ textShadow: '0 0 6px #93c5fd' }}
+                    aria-live="polite"
+                  >
+                    {freqHz ? `${freqHz} Hz` : 'Listening…'}
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={handleRecordClick}
