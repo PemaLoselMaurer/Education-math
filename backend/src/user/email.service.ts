@@ -8,15 +8,15 @@ export class EmailService {
     port: 587,
     secure: false,
     auth: {
-      user: 'wanggyeltshen2007@gmail.com', // <-- Replace with your Gmail address
-      pass: 'Gyeltshen7$$$', // <-- Replace with your Gmail App Password
+      user: '', // <-- Replace with your Gmail address
+      pass: '', // <-- Replace with your Gmail App Password
     },
   });
 
   async sendVerificationEmail(email: string, token: string) {
     const verificationUrl = `http://localhost:3001/user/verify-email?token=${token}`;
     await this.transporter.sendMail({
-      from: 'wanggyeltshen2007@gmail.com',
+      from: '',
       to: email,
       subject: 'Verify your email',
       html: `<p>Please verify your email by clicking <a href="${verificationUrl}">here</a>.</p>`,
