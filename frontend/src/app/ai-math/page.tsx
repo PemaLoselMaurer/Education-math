@@ -380,8 +380,11 @@ function AiMathPage() {
   // Live frequency indicator
   const analyserRef = useRef<AnalyserNode | null>(null);
   const rafIdRef = useRef<number | null>(null);
-  const [freqHz, setFreqHz] = useState<number | null>(null);
   const freqCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  // WhatsApp-like timer while recording
+  const recordStartRef = useRef<number | null>(null);
+  const [elapsedStr, setElapsedStr] = useState<string>("00:00");
+  const lastTimeUpdateRef = useRef<number>(0);
   const pcmChunksRef = useRef<Float32Array[]>([]);
   const sampleRateRef = useRef<number>(16000);
   const ttsVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
@@ -1182,7 +1185,8 @@ function AiMathPage() {
     cancelAnimationFrame(rafIdRef.current);
     rafIdRef.current = null;
   }
-  setFreqHz(null);
+  recordStartRef.current = null;
+  setElapsedStr("00:00");
   if (ctx) await ctx.close().catch(() => undefined);
         scriptNodeRef.current = null;
         audioCtxRef.current = null;
@@ -1237,6 +1241,8 @@ function AiMathPage() {
       sampleRateRef.current = ctx.sampleRate || sampleRateRef.current;
       const source = ctx.createMediaStreamSource(stream);
       pcmChunksRef.current = [];
+      recordStartRef.current = performance.now();
+      setElapsedStr("00:00");
       // Set up frequency analyser (dominant FFT peak)
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 2048; // frequencyBinCount = 1024
@@ -1267,10 +1273,7 @@ function AiMathPage() {
             const v = freqData[i];
             if (v > maxVal) { maxVal = v; maxIdx = i; }
           }
-          const nyquist = ctx.sampleRate / 2;
-          const binWidth = nyquist / freqData.length;
-          const hz = maxVal > 8 ? Math.round(maxIdx * binWidth) : 0; // noise threshold ~8
-          setFreqHz(hz > 0 ? hz : null);
+          // Keep peak index for drawing only
           // Draw simple spectrum bars
           if (c2d && canvas) {
             const W = (canvas.clientWidth || 96);
@@ -1300,6 +1303,16 @@ function AiMathPage() {
             const peakX = Math.floor((maxIdx / freqData.length) * W);
             c2d.fillStyle = 'rgba(56, 189, 248, 0.9)'; // cyan-400
             c2d.fillRect(peakX, 0, 1, H);
+          }
+          // Update timer (throttled to ~5fps)
+          const now = performance.now();
+          if (recordStartRef.current != null && now - lastTimeUpdateRef.current > 180) {
+            const ms = Math.max(0, Math.round(now - recordStartRef.current));
+            const totalSec = Math.floor(ms / 1000);
+            const mm = String(Math.floor(totalSec / 60)).padStart(2, '0');
+            const ss = String(totalSec % 60).padStart(2, '0');
+            setElapsedStr(`${mm}:${ss}`);
+            lastTimeUpdateRef.current = now;
           }
         } catch {
           // ignore one-off errors during teardown
@@ -1347,6 +1360,31 @@ function AiMathPage() {
         return next;
       });
     }
+  }
+
+  // Cancel (discard) current recording without sending
+  async function handleCancelRecording() {
+    if (!isRecording) return;
+    try {
+      setIsRecording(false);
+      const ctx = audioCtxRef.current;
+      const node = scriptNodeRef.current as ScriptProcessorNode | AudioWorkletNode | null;
+      const stream = streamRef.current;
+      stream?.getTracks().forEach((t) => t.stop());
+      await new Promise((r) => setTimeout(r, 120));
+      try { node?.disconnect(); } catch {}
+      try { analyserRef.current?.disconnect(); } catch {}
+      analyserRef.current = null;
+      if (rafIdRef.current != null) { cancelAnimationFrame(rafIdRef.current); rafIdRef.current = null; }
+      recordStartRef.current = null;
+      setElapsedStr("00:00");
+      if (ctx) await ctx.close().catch(() => undefined);
+      scriptNodeRef.current = null;
+      audioCtxRef.current = null;
+      streamRef.current = null;
+      // Discard any captured PCM
+      pcmChunksRef.current = [];
+    } catch {}
   }
 
 
@@ -1487,27 +1525,29 @@ function AiMathPage() {
                 <Input
                   type="text"
                   className="w-full rounded-full border-2 border-blue-400/60 pl-4 pr-52 py-2 text-base font-quicksand focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-900/40 text-blue-100 shadow-lg placeholder:text-blue-100/80"
-                  placeholder={`Have Doubts? Ask AI`}
+                  placeholder={""}
                   value={input}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
                   required
                   style={{ boxShadow: '0 0 8px #6366f1cc' }}
                 />
                 {isRecording && (
-                  <>
-                    <canvas
-                      ref={freqCanvasRef}
-                      className="absolute right-44 top-1/2 -translate-y-1/2 h-[22px] w-[120px] rounded-full bg-blue-900/30 border border-blue-300/30 shadow"
-                      aria-hidden="true"
-                    />
-                    <div
-                      className="absolute right-[172px] top-1/2 -translate-y-1/2 text-[10px] text-blue-100/80"
-                      style={{ textShadow: '0 0 4px #93c5fd' }}
-                      aria-live="polite"
+                  <div
+                    className="absolute inset-0 flex items-center gap-3 pl-3 pr-24 rounded-full bg-blue-900/30 border border-blue-300/30"
+                    style={{ boxShadow: 'inset 0 0 8px rgba(99,102,241,0.5)' }}
+                  >
+                    <span className="text-blue-100/90 text-sm tabular-nums drop-shadow-sm" aria-live="polite">{elapsedStr}</span>
+                    <canvas ref={freqCanvasRef} className="h-[24px] w-full rounded bg-blue-900/20" aria-hidden="true" />
+                    <button
+                      type="button"
+                      onClick={handleCancelRecording}
+                      aria-label="Cancel recording"
+                      className="shrink-0 h-7 w-7 rounded-full bg-rose-700/80 hover:bg-rose-600 text-white border border-rose-300/60 shadow flex items-center justify-center"
+                      title="Cancel"
                     >
-                      {freqHz ? `${freqHz} Hz` : 'Listening…'}
-                    </div>
-                  </>
+                      <XCircle className="h-4 w-4" />
+                    </button>
+                  </div>
                 )}
                 <button
                   type="button"
