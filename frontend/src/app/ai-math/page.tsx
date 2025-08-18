@@ -381,6 +381,7 @@ function AiMathPage() {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const rafIdRef = useRef<number | null>(null);
   const [freqHz, setFreqHz] = useState<number | null>(null);
+  const freqCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const pcmChunksRef = useRef<Float32Array[]>([]);
   const sampleRateRef = useRef<number>(16000);
   const ttsVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
@@ -1243,6 +1244,19 @@ function AiMathPage() {
       analyserRef.current = analyser;
       // Start RAF loop to update frequency while recording
       const freqData = new Uint8Array(analyser.frequencyBinCount);
+      // Prepare canvas for spectrum drawing
+      const canvas = freqCanvasRef.current;
+      let c2d: CanvasRenderingContext2D | null = null;
+      let dpr = 1;
+      if (canvas) {
+        const cssWidth = canvas.clientWidth || 96;
+        const cssHeight = canvas.clientHeight || 22;
+        dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+        canvas.width = cssWidth * dpr;
+        canvas.height = cssHeight * dpr;
+        c2d = canvas.getContext('2d');
+        if (c2d) c2d.scale(dpr, dpr);
+      }
       const updateFreq = () => {
         try {
           analyser.getByteFrequencyData(freqData);
@@ -1257,6 +1271,36 @@ function AiMathPage() {
           const binWidth = nyquist / freqData.length;
           const hz = maxVal > 8 ? Math.round(maxIdx * binWidth) : 0; // noise threshold ~8
           setFreqHz(hz > 0 ? hz : null);
+          // Draw simple spectrum bars
+          if (c2d && canvas) {
+            const W = (canvas.clientWidth || 96);
+            const H = (canvas.clientHeight || 22);
+            c2d.clearRect(0, 0, W, H);
+            // Gradient fill
+            const grad = c2d.createLinearGradient(0, 0, 0, H);
+            grad.addColorStop(0, 'rgba(125, 211, 252, 0.95)'); // sky-300
+            grad.addColorStop(1, 'rgba(59, 130, 246, 0.5)');  // blue-500
+            // Render N bars across the width
+            const bars = 24;
+            const step = Math.floor(freqData.length / bars);
+            const barW = Math.max(2, Math.floor((W - bars) / bars));
+            for (let b = 0; b < bars; b++) {
+              const idx = b * step;
+              // take the max in the window for a punchier look
+              let m = 0;
+              for (let k = 0; k < step; k++) m = Math.max(m, freqData[idx + k] || 0);
+              const mag = m / 255; // 0..1
+              const barH = Math.max(1, Math.round(mag * H));
+              const x = b * (barW + 1);
+              const y = H - barH;
+              c2d.fillStyle = grad;
+              c2d.fillRect(x, y, barW, barH);
+            }
+            // Highlight peak position as a thin line
+            const peakX = Math.floor((maxIdx / freqData.length) * W);
+            c2d.fillStyle = 'rgba(56, 189, 248, 0.9)'; // cyan-400
+            c2d.fillRect(peakX, 0, 1, H);
+          }
         } catch {
           // ignore one-off errors during teardown
         }
@@ -1450,13 +1494,20 @@ function AiMathPage() {
                   style={{ boxShadow: '0 0 8px #6366f1cc' }}
                 />
                 {isRecording && (
-                  <div
-                    className="absolute right-44 top-1/2 -translate-y-1/2 text-xs text-blue-100 bg-blue-800/50 px-2 py-0.5 rounded-full border border-blue-300/40 shadow"
-                    style={{ textShadow: '0 0 6px #93c5fd' }}
-                    aria-live="polite"
-                  >
-                    {freqHz ? `${freqHz} Hz` : 'Listening…'}
-                  </div>
+                  <>
+                    <canvas
+                      ref={freqCanvasRef}
+                      className="absolute right-44 top-1/2 -translate-y-1/2 h-[22px] w-[120px] rounded-full bg-blue-900/30 border border-blue-300/30 shadow"
+                      aria-hidden="true"
+                    />
+                    <div
+                      className="absolute right-[172px] top-1/2 -translate-y-1/2 text-[10px] text-blue-100/80"
+                      style={{ textShadow: '0 0 4px #93c5fd' }}
+                      aria-live="polite"
+                    >
+                      {freqHz ? `${freqHz} Hz` : 'Listening…'}
+                    </div>
+                  </>
                 )}
                 <button
                   type="button"
