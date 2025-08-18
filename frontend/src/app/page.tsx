@@ -40,7 +40,7 @@ export default function Home() {
               Math Quest
             </span>
           </div>
-          <Link href="/signin">
+          <Link href="/auth">
             <Button size="sm" className="ml-4 bg-pink-500 hover:bg-pink-600 text-white rounded-full font-[Comic Sans MS,Comic Sans,cursive] border-2 border-pink-300" onClick={playClick}>Sign In</Button>
           </Link>
         </nav>

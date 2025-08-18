@@ -3,9 +3,23 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { LocalHFService } from './local-hf.service';
 import { AiController } from './ai.controller';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { UserModule } from './user/user.module';
 
 @Module({
-  imports: [],
+  imports: [
+    TypeOrmModule.forRoot({
+      type: 'postgres',
+      host: 'localhost',
+      port: 5432,
+      username: 'postgres',
+      password: 'Gyeltshen7$$$',
+      database: 'education_math_db',
+      entities: [__dirname + '/**/*.entity{.ts,.js}'],
+      synchronize: true, // Disable in production
+    }),
+    UserModule,
+  ],
   controllers: [AppController, AiController],
   providers: [AppService, LocalHFService],
 })
