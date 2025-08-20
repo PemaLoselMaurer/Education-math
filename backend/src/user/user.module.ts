@@ -6,6 +6,7 @@ import { UserService } from './user.service';
 import { UserController } from './user.controller';
 // import { GoogleStrategy } from './google.strategy';
 import { EmailService } from './email.service';
+import { JwtStrategy } from '../auth/jwt.strategy';
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { EmailService } from './email.service';
       signOptions: { expiresIn: '1d' },
     }),
   ],
-  providers: [UserService, /* GoogleStrategy, */ EmailService],
+  providers: [UserService, /* GoogleStrategy, */ EmailService, JwtStrategy],
   controllers: [UserController],
   exports: [UserService],
 })

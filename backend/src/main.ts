@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
+import cookieParser from 'cookie-parser';
 import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 
@@ -13,7 +14,19 @@ if (!process.env.ORT_LOG_VERBOSITY_LEVEL) {
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.enableCors();
+  const origins = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3002',
+  ];
+  if (process.env.FRONTEND_ORIGIN) origins.push(process.env.FRONTEND_ORIGIN);
+  app.enableCors({
+    origin: origins,
+    credentials: true,
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  });
+  app.use(cookieParser(process.env.COOKIE_SECRET || 'dev_cookie_secret'));
   // Increase body size limits to accept base64 audio data URLs
   app.use(json({ limit: process.env.BODY_LIMIT || '25mb' }));
   app.use(

@@ -1,7 +1,20 @@
-import { Controller, Post, Body, UnauthorizedException, Get, Query, BadRequestException, Req, Res, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UnauthorizedException,
+  Get,
+  Query,
+  BadRequestException,
+  Res,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { UserService } from './user.service';
 import { JwtService } from '@nestjs/jwt';
 import { EmailService } from './email.service';
+// import { AuthGuard } from '@nestjs/passport';
+import type { Response, Request } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 
 @Controller('user')
@@ -34,26 +47,46 @@ export class UserController {
 
   @Post('register')
   async register(
-  @Body('username') username: string,
-  @Body('email') email: string,
-  @Body('password') password: string,
-  @Body('age') age: number,
+    @Body('username') username: string,
+    @Body('email') email: string,
+    @Body('password') password: string,
+    @Body('age') age: number,
+    @Res({ passthrough: true }) res: Response,
   ) {
     // TODO: Add real email existence check (e.g., via external API)
     try {
-  const user = await this.userService.register(username, email, password);
-  if (typeof age === 'number') user.age = age;
+      const user = await this.userService.register(username, email, password);
+      if (typeof age === 'number') user.age = age;
       // Save user directly, skip email validation
       const savedUser = await this.userService.save(user);
-      return { id: savedUser.id, username: savedUser.username, email: savedUser.email, message: 'Registration successful' };
-    } catch (err) {
+      const payload = { sub: savedUser.id, username: savedUser.username };
+      const token = await this.jwtService.signAsync(payload);
+      const isProd = process.env.NODE_ENV === 'production';
+      res.cookie('access_token', token, {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: isProd ? 'none' : 'lax',
+        maxAge: 1000 * 60 * 60 * 24, // 1 day
+      });
+      return {
+        id: savedUser.id,
+        username: savedUser.username,
+        email: savedUser.email,
+        message: 'Registration successful',
+      };
+    } catch (err: unknown) {
       // Log error for debugging
       console.error('Registration error:', err);
-      if (err.message === 'Username already exists') {
-        throw new BadRequestException('Username is already taken. Please choose another.');
+      const e = err as { message?: string; response?: { message?: string } };
+      if (e?.message === 'Username already exists') {
+        throw new BadRequestException(
+          'Username is already taken. Please choose another.',
+        );
       }
-      if (err.response && err.response.message) {
-        throw new BadRequestException(`Registration failed: ${err.response.message}`);
+      if (e?.response?.message) {
+        throw new BadRequestException(
+          `Registration failed: ${e.response.message}`,
+        );
       }
       throw new BadRequestException('Registration failed.');
     }
@@ -75,6 +108,7 @@ export class UserController {
   async login(
     @Body('username') username: string,
     @Body('password') password: string,
+    @Res({ passthrough: true }) res: Response,
   ) {
     const user = await this.userService.validateUser(username, password);
     if (!user) {
@@ -82,7 +116,35 @@ export class UserController {
     }
     const payload = { sub: user.id, username: user.username };
     const token = await this.jwtService.signAsync(payload);
-    return { access_token: token };
+    const isProd = process.env.NODE_ENV === 'production';
+    res.cookie('access_token', token, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
+      maxAge: 1000 * 60 * 60 * 24, // 1 day
+    });
+    return { ok: true };
+  }
+
+  @Post('logout')
+  logout(@Res({ passthrough: true }) res: Response) {
+    const isProd = process.env.NODE_ENV === 'production';
+    res.cookie('access_token', '', {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
+      maxAge: 0,
+    });
+    return { ok: true };
+  }
+
+  @Get('me')
+  @UseGuards(AuthGuard('jwt'))
+  me(@Req() req: Request) {
+    const typed = req as Request & {
+      user?: { userId: number; username: string };
+    };
+    return typed.user ?? null;
   }
   /*
   @Get('google')
