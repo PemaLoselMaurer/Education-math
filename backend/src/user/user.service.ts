@@ -46,6 +46,11 @@ export class UserService {
     return user === null ? undefined : user;
   }
 
+  async findById(id: number): Promise<User | undefined> {
+    const user = await this.userRepository.findOne({ where: { id } });
+    return user === null ? undefined : user;
+  }
+
   async validateUser(username: string, password: string): Promise<User | null> {
     const user = await this.findByUsername(username);
     if (
@@ -65,9 +70,6 @@ export class UserService {
   }
 
   async save(user: User): Promise<User> {
-    // Only assign null to clear verificationToken
-    return this.userRepository.save(user);
-    // Fix verificationToken type issue
     if (user.verificationToken === undefined) {
       user.verificationToken = null;
     }

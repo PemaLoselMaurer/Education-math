@@ -16,6 +16,8 @@ import { EmailService } from './email.service';
 // import { AuthGuard } from '@nestjs/passport';
 import type { Response, Request } from 'express';
 import { AuthGuard } from '@nestjs/passport';
+import { writeFileSync, mkdirSync } from 'fs';
+import { join } from 'path';
 
 @Controller('user')
 export class UserController {
@@ -145,6 +147,90 @@ export class UserController {
       user?: { userId: number; username: string };
     };
     return typed.user ?? null;
+  }
+
+  @Get('profile')
+  @UseGuards(AuthGuard('jwt'))
+  async getProfile(@Req() req: Request) {
+    const typed = req as Request & { user?: { userId: number } };
+    const user = await this.userService.findById(typed.user!.userId);
+    if (!user) throw new BadRequestException('User not found');
+    const {
+      id,
+      username,
+      email,
+      firstName,
+      lastName,
+      age,
+      favouriteSubjects,
+      hobbies,
+      avatarUrl,
+    } = user;
+    return {
+      id,
+      username,
+      email,
+      firstName,
+      lastName,
+      age,
+      favouriteSubjects,
+      hobbies,
+      avatarUrl,
+    };
+  }
+
+  @Post('profile')
+  @UseGuards(AuthGuard('jwt'))
+  async updateProfile(
+    @Req() req: Request,
+    @Body()
+    body: Partial<{
+      firstName: string;
+      lastName: string;
+      age: number;
+      favouriteSubjects: string[];
+      hobbies: string[];
+    }>,
+  ) {
+    const typed = req as Request & { user?: { userId: number } };
+    const user = await this.userService.findById(typed.user!.userId);
+    if (!user) throw new BadRequestException('User not found');
+    user.firstName = body.firstName ?? user.firstName;
+    user.lastName = body.lastName ?? user.lastName;
+    user.age = typeof body.age === 'number' ? body.age : user.age;
+    user.favouriteSubjects = body.favouriteSubjects ?? user.favouriteSubjects;
+    user.hobbies = body.hobbies ?? user.hobbies;
+    const saved = await this.userService.save(user);
+    return { ok: true, id: saved.id };
+  }
+
+  @Post('avatar')
+  @UseGuards(AuthGuard('jwt'))
+  async uploadAvatar(
+    @Req() req: Request,
+    @Body('imageData') imageData: string,
+  ) {
+    if (!imageData || !imageData.startsWith('data:image/')) {
+      throw new BadRequestException('Invalid image data');
+    }
+    const typed = req as Request & { user?: { userId: number } };
+    const user = await this.userService.findById(typed.user!.userId);
+    if (!user) throw new BadRequestException('User not found');
+    const [meta, data] = imageData.split(',');
+    const ext = meta.includes('image/png')
+      ? 'png'
+      : meta.includes('image/jpeg')
+        ? 'jpg'
+        : 'png';
+    const buffer = Buffer.from(data, 'base64');
+    const dir = join(process.cwd(), 'uploads', 'avatars');
+    mkdirSync(dir, { recursive: true });
+    const filename = `u${user.id}-${Date.now()}.${ext}`;
+    const filePath = join(dir, filename);
+    writeFileSync(filePath, buffer);
+    user.avatarUrl = `/uploads/avatars/${filename}`;
+    await this.userService.save(user);
+    return { ok: true, avatarUrl: user.avatarUrl };
   }
   /*
   @Get('google')

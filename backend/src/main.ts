@@ -3,6 +3,8 @@ import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
 import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
+import { join } from 'path';
+import { existsSync, mkdirSync } from 'fs';
 
 // Reduce ONNX Runtime console noise (0=verbose,1=info,2=warning,3=error,4=fatal)
 if (!process.env.ORT_LOG_SEVERITY_LEVEL) {
@@ -32,6 +34,10 @@ async function bootstrap() {
   app.use(
     urlencoded({ extended: true, limit: process.env.BODY_LIMIT || '25mb' }),
   );
+  // Static serve uploads
+  const uploadsDir = join(process.cwd(), 'uploads');
+  if (!existsSync(uploadsDir)) mkdirSync(uploadsDir, { recursive: true });
+  app.use('/uploads', (await import('express')).default.static(uploadsDir));
   await app.listen(process.env.PORT ?? 3001);
 }
 void bootstrap();

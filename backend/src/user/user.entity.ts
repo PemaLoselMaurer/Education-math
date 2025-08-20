@@ -38,4 +38,7 @@ export class User {
 
   @Column({ nullable: true, type: 'json' })
   profile: Record<string, any> | null;
+
+  @Column({ nullable: true, type: 'varchar' })
+  avatarUrl: string | null;
 }
