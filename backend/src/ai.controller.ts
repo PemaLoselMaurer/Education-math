@@ -13,40 +13,11 @@ import { LocalHFService } from './local-hf.service';
 type RSReader = { read(): Promise<{ value?: Uint8Array; done: boolean }> };
 type WebReadable = { getReader(): RSReader };
 
-type AskDto = { prompt: string };
-
-// Default prompts (kept out of the class to avoid long inline strings)
-const DEFAULT_SYSTEM_PROMPT = [
-  'You are a friendly Space Math teacher for kids ages 6–10.',
-  'Explain simply with short, clear steps using everyday words and small numbers.',
-  'Encourage gently.',
-  'Avoid revealing chain-of-thought; give the final answer and a brief 1–2 sentence explanation or a tiny hint if the student seems stuck.',
-  'Do not give game-control instructions unless the student asks about how to play or it is essential to answer their question.',
-].join(' ');
-
-const DEFAULT_GAME_GUIDE = [
-  'Context: Space Math is a game with simple controls.',
-  'Use this only as background knowledge; do not explain controls unless the student explicitly asks about how to play or controls,',
-  'or if a very brief cue is strictly needed to answer.',
-  'Controls summary: + blaster adds 1 dot; − blaster removes 1; Groups blaster adds a small cluster.',
-  'Tap the space to place dots. Double‑tap to fire two quickly. Color cycles blue → green → red for new dots only. Clear removes all dots.',
-  'Missions include: Addition (make more), Subtraction (take away), Multiplication (make groups), Division (split into equal groups).',
-  'Prefer concise math help over gameplay instructions.',
-].join(' ');
+type AskDto = { prompt: string; system?: string };
 
 @Controller('ai')
 export class AiController {
   private readonly DEFAULT_BASE = 'http://localhost:11434';
-  private readonly SYSTEM_PROMPT =
-    (process.env.OLLAMA_SYSTEM_PROMPT || '').trim().replace(/\s+/g, ' ') ||
-    DEFAULT_SYSTEM_PROMPT;
-
-  // Short in-context manual so the AI understands how the Space Math game works
-  private readonly GAME_GUIDE = DEFAULT_GAME_GUIDE;
-
-  private buildSystem(): string {
-    return `${this.SYSTEM_PROMPT}\n\n${this.GAME_GUIDE}`.trim();
-  }
 
   constructor(private readonly local: LocalHFService) {}
 
@@ -206,16 +177,19 @@ export class AiController {
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), timeoutMs);
     try {
+      const sysAsk =
+        (typeof body?.system === 'string' && body.system.trim()) || '';
+      const askPayload: Record<string, unknown> = {
+        model,
+        prompt,
+        stream: false,
+        options: { temperature: 0.2 },
+      };
+      if (sysAsk) askPayload.system = sysAsk;
       let res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model,
-          prompt,
-          system: this.buildSystem(),
-          stream: false,
-          options: { temperature: 0.2 },
-        }),
+        body: JSON.stringify(askPayload),
         signal: ac.signal,
       });
       // If default base failed immediately and base is localhost (IPv6/host issue), retry with 127.0.0.1 once
@@ -226,16 +200,12 @@ export class AiController {
       ) {
         base = 'http://127.0.0.1:11434';
         url = `${base}/api/generate`;
+        const askPayload2 = { ...askPayload } as Record<string, unknown>;
+        if (sysAsk) askPayload2.system = sysAsk;
         res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model,
-            prompt,
-            system: this.buildSystem(),
-            stream: false,
-            options: { temperature: 0.2 },
-          }),
+          body: JSON.stringify(askPayload2),
           signal: ac.signal,
         });
       }
@@ -357,15 +327,18 @@ export class AiController {
     };
 
     try {
+      const sysStream =
+        (typeof body?.system === 'string' && body.system.trim()) || '';
+      const streamPayload: Record<string, unknown> = {
+        model,
+        prompt,
+        stream: true,
+      };
+      if (sysStream) streamPayload.system = sysStream;
       let ollamaRes = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model,
-          prompt,
-          system: this.buildSystem(),
-          stream: true,
-        }),
+        body: JSON.stringify(streamPayload),
         signal: ac.signal,
       });
       if (
@@ -375,15 +348,12 @@ export class AiController {
       ) {
         base = 'http://127.0.0.1:11434';
         url = `${base}/api/generate`;
+        const streamPayload2 = { ...streamPayload } as Record<string, unknown>;
+        if (sysStream) streamPayload2.system = sysStream;
         ollamaRes = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model,
-            prompt,
-            system: this.buildSystem(),
-            stream: true,
-          }),
+          body: JSON.stringify(streamPayload2),
           signal: ac.signal,
         });
       }

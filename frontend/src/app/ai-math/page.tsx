@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
+import { AI_MATH_SYSTEM_PROMPT } from "@/lib/prompt";
 
 // Phaser Game React Component using TypeScript
 import dynamic from "next/dynamic";
@@ -1412,7 +1413,11 @@ function AiMathPage() {
           Accept: "text/event-stream",
         },
         credentials: "include",
-        body: JSON.stringify({ prompt: question, model: "qwen3:32b" }),
+        body: JSON.stringify({
+          prompt: question,
+          model: "qwen3:32b",
+          system: AI_MATH_SYSTEM_PROMPT,
+        }),
       });
       if (!res.ok || !res.body) {
         const text = await res.text().catch(() => "");

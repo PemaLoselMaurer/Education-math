@@ -36,7 +36,12 @@ function AuthForm() {
             ? "Login successful!"
             : data.message || "Registered successfully!"
         );
-        router.push(nextPath); // Go to intended page or home
+        // If registering, take user to onboarding welcome page; otherwise honor nextPath
+        if (!isLogin) {
+          router.push("/welcome");
+        } else {
+          router.push(nextPath);
+        }
       } else {
         setMessage(data.error || data.message || "Something went wrong");
       }
