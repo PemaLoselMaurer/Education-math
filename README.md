@@ -2,6 +2,31 @@
 
 A full‑stack learning app with a NestJS backend and a Next.js frontend focused on math practice, AI assistance, and a gamified UI.
 
+## Overview
+
+Education‑math is a two‑service app:
+
+- Frontend: Next.js (App Router) UI with protected routes, math gameplay, profile, and an API route that proxies AI requests to the backend.
+- Backend: NestJS API providing authentication, user profile and avatar handling, math/AI endpoints, and static file serving for uploads.
+
+Key features
+
+- Cookie‑based JWT auth (login/register/logout) with `GET /user/me` for session checks.
+- Profile and avatar: fetch profile, upload avatar via Data URL, files served under `/uploads`.
+- AI ask: frontend forwards requests to backend AI endpoint via `/api/ask` proxy.
+- CORS with credentials between localhost ports; frontend fetches include cookies.
+
+Data flow (high level)
+
+- Auth: Frontend submits credentials to backend; backend sets httpOnly cookie; frontend checks `/user/me` for gated pages.
+- Profile: Frontend loads `/user/profile`; avatar uploads via `POST /user/avatar` (Data URL) → backend saves to `uploads/` and returns `avatarUrl` → frontend renders via full URL.
+- AI: Frontend calls `/api/ask` → proxy relays to backend `/ai/ask` → response streamed back to UI.
+
+Folders
+
+- `backend/` NestJS app and API endpoints (serves `/uploads`).
+- `frontend/` Next.js app (UI, API route proxy, pages/components).
+
 ## Project status (progress)
 
 - Backend (NestJS)

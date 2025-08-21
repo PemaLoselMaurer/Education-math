@@ -18,6 +18,7 @@ import type { Response, Request } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
+import { PerformanceService } from './performance.service';
 
 @Controller('user')
 export class UserController {
@@ -45,6 +46,7 @@ export class UserController {
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
     private readonly emailService: EmailService,
+    private readonly performanceService: PerformanceService,
   ) {}
 
   @Post('register')
@@ -231,6 +233,59 @@ export class UserController {
     user.avatarUrl = `/uploads/avatars/${filename}`;
     await this.userService.save(user);
     return { ok: true, avatarUrl: user.avatarUrl };
+  }
+
+  @Get('performance')
+  @UseGuards(AuthGuard('jwt'))
+  async getPerformance(@Req() req: Request) {
+    const typed = req as Request & { user?: { userId: number } };
+    const entries = await this.performanceService.listForUser(
+      typed.user!.userId,
+    );
+    const totals = this.performanceService.computeTotals(entries);
+    return {
+      history: entries.map((e, idx) => ({
+        label: e.label || `S${idx + 1}`,
+        accuracy: Math.max(0, Math.min(100, Number(e.accuracy) || 0)),
+        createdAt: e.createdAt,
+      })),
+      totals,
+    };
+  }
+
+  @Post('performance')
+  @UseGuards(AuthGuard('jwt'))
+  async addPerformance(
+    @Req() req: Request,
+    @Body('label') label: string,
+    @Body('accuracy') accuracy: number,
+  ) {
+    if (typeof accuracy !== 'number' || !isFinite(accuracy)) {
+      throw new BadRequestException('accuracy must be a number');
+    }
+    const typed = req as Request & { user?: { userId: number } };
+    const entry = await this.performanceService.addEntry(
+      typed.user!.userId,
+      label || 'Session',
+      Math.max(0, Math.min(100, accuracy)),
+    );
+    return { ok: true, id: entry.id };
+  }
+
+  // Optional helper to seed some demo data quickly
+  @Post('performance/seed')
+  @UseGuards(AuthGuard('jwt'))
+  async seedPerformance(@Req() req: Request) {
+    const typed = req as Request & { user?: { userId: number } };
+    const seq = [72, 78, 81, 79, 85, 90, 86];
+    for (let i = 0; i < seq.length; i++) {
+      await this.performanceService.addEntry(
+        typed.user!.userId,
+        `S${i + 1}`,
+        seq[i],
+      );
+    }
+    return { ok: true };
   }
   /*
   @Get('google')

@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
+import { Performance } from './performance.entity';
 
 @Entity()
 export class User {
@@ -41,4 +42,7 @@ export class User {
 
   @Column({ nullable: true, type: 'varchar' })
   avatarUrl: string | null;
+
+  @OneToMany(() => Performance, (p) => p.user)
+  performances?: Performance[];
 }

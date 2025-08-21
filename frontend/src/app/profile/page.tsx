@@ -2,7 +2,24 @@
 import React, { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from "@/components/ui/card";
+import {
+  AreaChart,
+  Area,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import { TrendingUp } from "lucide-react";
+import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -22,23 +39,19 @@ export default function ProfilePage() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [perf] = useState<{
+  const [perf, setPerf] = useState<{
     quizzesTaken: number;
     correctRate: number;
     streak: number;
-  }>({ quizzesTaken: 12, correctRate: 86, streak: 5 });
+  }>({ quizzesTaken: 0, correctRate: 0, streak: 0 });
   const [uploading, setUploading] = useState(false);
-  // Mock performance history for the chart (percent correct over recent sessions)
-  const perfHistory = [72, 78, 81, 79, 85, 90, 86];
-  // Fixed 0–100 scale with 10% vertical padding (map 0..100 -> 90..10)
-  const toY = (val: number) => 90 - Math.max(0, Math.min(100, val)) * 0.8;
-  const chartPoints = perfHistory
-    .map((v, i) => {
-      const x = (i / (perfHistory.length - 1)) * 100;
-      const y = toY(v);
-      return `${x},${y}`;
-    })
-    .join(" ");
+  // Chart data (sessions vs accuracy %)
+  const [chartData, setChartData] = useState<
+    { label: string; accuracy: number }[]
+  >([]);
+  const chartConfig = {
+    accuracy: { label: "Accuracy", color: "#60a5fa" },
+  } as const;
   const clickAudioRef = useRef<HTMLAudioElement>(null);
   const playClick = () => {
     if (clickAudioRef.current) {
@@ -70,6 +83,23 @@ export default function ProfilePage() {
           if (pRes.ok) {
             const p = await pRes.json();
             if (alive) setProfile(p);
+          }
+          const perfRes = await fetch(`${base}/user/performance`, {
+            credentials: "include",
+          });
+          if (perfRes.ok) {
+            const { history, totals } = (await perfRes.json()) as {
+              history: { label: string; accuracy: number }[];
+              totals: {
+                quizzesTaken: number;
+                correctRate: number;
+                streak: number;
+              };
+            };
+            if (alive) {
+              setChartData(history);
+              setPerf(totals);
+            }
           }
         }
       } catch {
@@ -315,64 +345,55 @@ export default function ProfilePage() {
                   <CardTitle className="text-lg">Performance</CardTitle>
                 </CardHeader>
                 <CardContent className="pt-4">
-                  {/* Simple line chart using SVG */}
                   <div className="w-full h-40 md:h-48 lg:h-56">
-                    <svg
-                      viewBox="0 0 100 100"
-                      className="w-full h-full"
-                      preserveAspectRatio="none"
-                      shapeRendering="geometricPrecision"
+                    <ChartContainer
+                      config={chartConfig}
+                      className="h-full w-full"
                     >
-                      <defs>
-                        <linearGradient
-                          id="perfGradient"
-                          x1="0"
-                          x2="1"
-                          y1="0"
-                          y2="0"
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart
+                          data={chartData}
+                          margin={{ left: 12, right: 12, top: 10, bottom: 0 }}
                         >
-                          <stop offset="0%" stopColor="#f472b6" />
-                          <stop offset="100%" stopColor="#60a5fa" />
-                        </linearGradient>
-                      </defs>
-                      {/* grid lines */}
-                      {[0, 25, 50, 75, 100].map((y) => (
-                        <line
-                          key={y}
-                          x1="0"
-                          y1={y}
-                          x2="100"
-                          y2={y}
-                          stroke="#e5e7eb"
-                          strokeWidth="0.3"
-                        />
-                      ))}
-                      {/* polyline */}
-                      <polyline
-                        fill="none"
-                        stroke="url(#perfGradient)"
-                        strokeWidth="2.2"
-                        points={chartPoints}
-                      />
-                      {/* points */}
-                      {perfHistory.map((v, i) => {
-                        const x = (i / (perfHistory.length - 1)) * 100;
-                        const y = toY(v);
-                        return (
-                          <circle
-                            key={i}
-                            cx={x}
-                            cy={y}
-                            r="1.8"
-                            fill="#f472b6"
-                            stroke="#fff"
-                            strokeWidth="0.5"
+                          <defs>
+                            <linearGradient
+                              id="perfGradient"
+                              x1="0"
+                              x2="1"
+                              y1="0"
+                              y2="0"
+                            >
+                              <stop offset="0%" stopColor="#f472b6" />
+                              <stop offset="100%" stopColor="#60a5fa" />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid vertical={false} stroke="#e5e7eb" />
+                          <XAxis
+                            dataKey="label"
+                            tickLine={false}
+                            axisLine={false}
+                            tickMargin={8}
                           />
-                        );
-                      })}
-                    </svg>
+                          <YAxis domain={[0, 100]} hide />
+                          <Tooltip
+                            cursor={false}
+                            content={<ChartTooltipContent />}
+                          />
+                          <Area
+                            type="natural"
+                            dataKey="accuracy"
+                            stroke="url(#perfGradient)"
+                            fill="url(#perfGradient)"
+                            fillOpacity={0.2}
+                            strokeWidth={2.2}
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </ChartContainer>
                     <div className="mt-1 text-xs text-gray-500">
-                      Accuracy over last {perfHistory.length} sessions
+                      {chartData.length > 0
+                        ? `Accuracy over last ${chartData.length} sessions`
+                        : "No performance data yet"}
                     </div>
                   </div>
                   {/* KPI tiles */}
@@ -395,6 +416,19 @@ export default function ProfilePage() {
                     </div>
                   </div>
                 </CardContent>
+                <CardFooter>
+                  <div className="flex w-full items-start gap-2 text-sm">
+                    <div className="grid gap-2">
+                      <div className="flex items-center gap-2 leading-none font-medium">
+                        Trending up by 5.2% this week{" "}
+                        <TrendingUp className="h-4 w-4" />
+                      </div>
+                      <div className="text-muted-foreground flex items-center gap-2 leading-none">
+                        Sessions S1 – S7
+                      </div>
+                    </div>
+                  </div>
+                </CardFooter>
               </Card>
             </div>
           </div>

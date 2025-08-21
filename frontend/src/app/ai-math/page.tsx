@@ -1396,12 +1396,6 @@ function AiMathPage() {
 
   if (!mounted) return null;
 
-  // extractText removed
-
-  // TTS logic removed
-
-  // TTS pause/resume logic removed
-
   async function askStream(question: string) {
     // Optimistically show the question
     setChat((prev) => {
