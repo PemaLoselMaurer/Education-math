@@ -14,7 +14,7 @@ import { ElevenLabsService } from './elevenlabs.service';
       host: 'localhost',
       port: 5432,
       username: 'postgres',
-      password: 'Gyeltshen7$$$',
+      password: 'fl4shsimp',
       database: 'education_math_db',
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: true, // Disable in production

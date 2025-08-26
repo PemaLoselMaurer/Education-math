@@ -46,7 +46,10 @@ if (!process.env.ELEVENLABS_API_KEY) {
     }
   }
 }
-(global as unknown as Record<string, unknown>).__ENV_DIAG = { envTried, loaded };
+(global as unknown as Record<string, unknown>).__ENV_DIAG = {
+  envTried,
+  loaded,
+};
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
 import { json, urlencoded } from 'express';
