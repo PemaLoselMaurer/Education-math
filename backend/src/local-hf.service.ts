@@ -665,6 +665,11 @@ export class LocalHFService implements OnModuleInit {
       const clean = this.normalizeToPeak(this.removeDC(array));
       return { array: clean, sampling_rate };
     }
+    // Allow disabling trimming via env
+    if (process.env.LOCALHF_TRIM_SILENCE === 'false') {
+      const clean = this.normalizeToPeak(this.removeDC(array));
+      return { array: clean, sampling_rate };
+    }
     // DC-remove first to stabilize thresholding
     const dcFree = this.removeDC(array);
     // Find absolute peak to build adaptive threshold
@@ -674,9 +679,13 @@ export class LocalHFService implements OnModuleInit {
       if (v > peak) peak = v;
     }
     if (peak === 0) return { array: dcFree, sampling_rate };
-    // Dynamic threshold: small fraction of peak but not below floor
-    const floor = 0.0015;
-    const thresh = Math.max(floor, peak * 0.02);
+    // Dynamic threshold: small fraction of peak but not below floor (configurable)
+    const peakRatio = Number(process.env.LOCALHF_TRIM_PEAK_RATIO || '0.01');
+    const floor = Number(process.env.LOCALHF_TRIM_FLOOR || '0.0005');
+    const thresh = Math.max(
+      floor,
+      peak * (isFinite(peakRatio) && peakRatio > 0 ? peakRatio : 0.01),
+    );
     // Minimum voiced duration to consider (in seconds)
     const minVoiceSec = 0.05;
     const minVoiceSamples = Math.floor(minVoiceSec * sampling_rate);
@@ -690,9 +699,19 @@ export class LocalHFService implements OnModuleInit {
     start = Math.max(0, start - margin);
     end = Math.min(n - 1, end + margin);
     const length = end >= start ? end - start + 1 : 0;
-    // If trimming would be too short, just keep the original dc-free audio
+    // If trimming would be too short OR trimmed length is a very small fraction, keep original
     let out =
-      length >= minVoiceSamples ? dcFree.subarray(start, end + 1) : dcFree;
+      length >= minVoiceSamples && length > n * 0.15
+        ? dcFree.subarray(start, end + 1)
+        : dcFree;
+    try {
+      const trimmedSec = out.length / sampling_rate;
+      console.log(
+        `[LocalHF] trim stats dur=${durSec.toFixed(2)}s peak=${peak.toFixed(4)} thresh=${thresh.toFixed(5)} kept=${trimmedSec.toFixed(2)}s ratio=${(out.length / n).toFixed(2)}`,
+      );
+    } catch {
+      /* ignore */
+    }
     // Normalize peak
     out = this.normalizeToPeak(out, 0.97);
     return { array: out, sampling_rate };

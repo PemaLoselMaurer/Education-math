@@ -5,6 +5,7 @@ import { LocalHFService } from './local-hf.service';
 import { AiController } from './ai.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserModule } from './user/user.module';
+import { ElevenLabsService } from './elevenlabs.service';
 
 @Module({
   imports: [
@@ -13,7 +14,7 @@ import { UserModule } from './user/user.module';
       host: 'localhost',
       port: 5432,
       username: 'postgres',
-      password: 'fl4shsimp',
+      password: 'Gyeltshen7$$$',
       database: 'education_math_db',
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: true, // Disable in production
@@ -21,6 +22,6 @@ import { UserModule } from './user/user.module';
     UserModule,
   ],
   controllers: [AppController, AiController],
-  providers: [AppService, LocalHFService],
+  providers: [AppService, LocalHFService, ElevenLabsService],
 })
 export class AppModule {}

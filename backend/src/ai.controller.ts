@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { LocalHFService } from './local-hf.service';
+import { ElevenLabsService } from './elevenlabs.service';
 // Minimal reader types to avoid depending on DOM lib in Node builds
 type RSReader = { read(): Promise<{ value?: Uint8Array; done: boolean }> };
 type WebReadable = { getReader(): RSReader };
@@ -19,7 +20,10 @@ type AskDto = { prompt: string; system?: string };
 export class AiController {
   private readonly DEFAULT_BASE = 'http://localhost:11434';
 
-  constructor(private readonly local: LocalHFService) {}
+  constructor(
+    private readonly local: LocalHFService,
+    private readonly eleven: ElevenLabsService,
+  ) {}
 
   @Get('health')
   async health(): Promise<{ ok: boolean; base: string; reason?: string }> {
@@ -59,6 +63,221 @@ export class AiController {
       return { ok: false, base, reason };
     } finally {
       clearTimeout(timer);
+    }
+  }
+
+  @Get('tts-config')
+  ttsConfig(): {
+    hasApiKey: boolean;
+    apiKeyPreview: string | null;
+    voiceIdEnv: string | null;
+    modelIdEnv: string | null;
+  } {
+    const apiKey = process.env.ELEVENLABS_API_KEY || '';
+    return {
+      hasApiKey: !!apiKey,
+      apiKeyPreview: apiKey
+        ? `${apiKey.slice(0, 6)}…${apiKey.slice(-4)}`
+        : null,
+      voiceIdEnv: process.env.ELEVENLABS_VOICE_ID || null,
+      modelIdEnv: process.env.ELEVENLABS_MODEL_ID || null,
+    };
+  }
+
+  @Post('tts-config')
+  ttsConfigPost() {
+    return this.ttsConfig();
+  }
+
+  @Post('tts')
+  async tts(
+    @Body()
+    body: {
+      text?: string;
+      voiceId?: string;
+      format?: 'mp3' | 'opus' | 'pcm_16000';
+      message?: string; // alias support
+      content?: string; // alias support
+    },
+  ): Promise<{
+    audio: string; // data URL
+    voiceId: string;
+    cached: boolean;
+    contentType: string;
+  }> {
+    const rawCandidate = [body?.text, body?.message, body?.content].find(
+      (v) => typeof v === 'string' && v.trim().length > 0,
+    );
+    const text = (rawCandidate || '').trim();
+    if (!text) {
+      const presentKeys = Object.keys(body || {}).join(',') || 'none';
+      throw new HttpException(
+        `Missing text (expected 'text' field). Present keys: ${presentKeys}`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    try {
+      console.log(
+        `[tts] incoming len=${text.length} voiceId=${body?.voiceId || 'auto'} keys=${Object.keys(
+          body || {},
+        ).join(',')}`,
+      );
+    } catch {
+      /* ignore logging errors */
+    }
+    try {
+      const { audioBase64, contentType, voiceId, cached } =
+        await this.eleven.synthesize(text, {
+          voiceId: body?.voiceId,
+          format: body?.format,
+        });
+      return {
+        audio: `data:${contentType};base64,${audioBase64}`,
+        voiceId,
+        cached,
+        contentType,
+      };
+    } catch (e: unknown) {
+      try {
+        const msg = e instanceof Error ? e.message : String(e);
+        // Minimal log to aid debugging when frontend reports fallback usage
+        console.warn('[tts] failure', msg, 'voiceId=', body?.voiceId);
+      } catch {
+        /* ignore logging errors */
+      }
+      throw e;
+    }
+  }
+
+  // Experimental streaming TTS passthrough (no caching).
+  // Streams raw audio/mpeg (or chosen format) bytes as they arrive from ElevenLabs.
+  @Post('tts-stream')
+  async ttsStream(
+    @Body()
+    body: {
+      text?: string;
+      voiceId?: string;
+      message?: string;
+      content?: string;
+      format?: 'mp3' | 'opus'; // restrict streaming formats to containerized types
+      optimizeStreamingLatency?: number | null;
+    },
+    @Res() res: Response,
+  ) {
+    const rawCandidate = [body?.text, body?.message, body?.content].find(
+      (v) => typeof v === 'string' && v.trim().length > 0,
+    );
+    const text = (rawCandidate || '').trim();
+    if (!text) {
+      res.status(HttpStatus.BAD_REQUEST).json({ error: 'Missing text' });
+      return;
+    }
+    const voiceId = (
+      body?.voiceId ||
+      process.env.ELEVENLABS_VOICE_ID ||
+      'g6xIsTj2HwM6VR4iXFCw'
+    ).trim();
+    const format = body?.format || 'mp3';
+    const apiKey = process.env.ELEVENLABS_API_KEY || '';
+    if (!apiKey) {
+      res
+        .status(HttpStatus.SERVICE_UNAVAILABLE)
+        .json({ error: 'Missing ELEVENLABS_API_KEY env variable' });
+      return;
+    }
+    // ElevenLabs streaming endpoint
+    const latencyOpt =
+      body?.optimizeStreamingLatency ??
+      (process.env.ELEVENLABS_OPTIMIZE_LATENCY
+        ? Number(process.env.ELEVENLABS_OPTIMIZE_LATENCY)
+        : null);
+    const qs = new URLSearchParams();
+    if (latencyOpt !== null && Number.isFinite(latencyOpt)) {
+      qs.set('optimize_streaming_latency', String(latencyOpt));
+    }
+    const url = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(
+      voiceId,
+    )}/stream${qs.toString() ? `?${qs.toString()}` : ''}`;
+    const payload: Record<string, unknown> = {
+      text,
+      // Forward tuning env if present (mirrors non-streaming)
+      model_id: process.env.ELEVENLABS_MODEL_ID || undefined,
+      voice_settings: {
+        stability: Number(process.env.ELEVENLABS_STABILITY || '0.3') || 0.3,
+        similarity_boost:
+          Number(process.env.ELEVENLABS_SIMILARITY || '0.8') || 0.8,
+        style: Number(process.env.ELEVENLABS_STYLE || '0.35') || 0.35,
+        use_speaker_boost: process.env.ELEVENLABS_SPEAKER_BOOST !== 'false',
+      },
+      output_format:
+        format === 'opus'
+          ? 'opus_24000'
+          : process.env.ELEVENLABS_OUTPUT_FORMAT || 'mp3_44100_192',
+    };
+    res.setHeader(
+      'Content-Type',
+      format === 'opus' ? 'audio/ogg' : 'audio/mpeg',
+    );
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Transfer-Encoding', 'chunked');
+    // Allow client to abort
+    const controller = new AbortController();
+    const abortHandler = () => controller.abort();
+    res.on('close', abortHandler);
+    try {
+      const upstream = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'xi-api-key': apiKey.trim(),
+          'Content-Type': 'application/json',
+          Accept: 'audio/mpeg',
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+      if (!upstream.ok || !upstream.body) {
+        const detail = await upstream.text().catch(() => '');
+        res
+          .status(HttpStatus.BAD_GATEWAY)
+          .json({ error: `ElevenLabs error ${upstream.status}: ${detail}` });
+        return;
+      }
+      console.log(
+        `[tts-stream] elevenlabs voice=${voiceId} len=${text.length} latencyOpt=${latencyOpt}`,
+      );
+      const reader = (upstream.body as unknown as WebReadable).getReader?.();
+      if (reader) {
+        let total = 0;
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          if (value && value.length) {
+            res.write(Buffer.from(value));
+            total += value.length;
+            if (total < 32768) {
+              // Early small progress ping (client can ignore)
+              // Avoid mixing binary & text; could send timing headers instead. Skipping SSE for simplicity.
+            }
+          }
+        }
+      } else {
+        // Fallback: read entire buffer (less optimal)
+        const buf = Buffer.from(await upstream.arrayBuffer());
+        res.write(buf);
+      }
+    } catch (e: unknown) {
+      if (!res.headersSent) {
+        res
+          .status(HttpStatus.BAD_GATEWAY)
+          .json({ error: `Streaming error: ${String(e)}` });
+      }
+    } finally {
+      try {
+        res.end();
+      } catch {
+        /* noop */
+      }
+      res.off('close', abortHandler);
     }
   }
 
