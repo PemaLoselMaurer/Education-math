@@ -1,52 +1,93 @@
 # Education-math
 
-A full‑stack learning app with a NestJS backend and a Next.js frontend focused on math practice, AI assistance, and a gamified UI.
+Full‑stack learning platform combining adaptive AI math assistance, voice onboarding, performance analytics, and a gamified space theme. Backend: NestJS + TypeORM. Frontend: Next.js (App Router) + Tailwind + shadcn UI.
 
 ## Overview
 
-Education‑math is a two‑service app:
+Two services:
 
-- Frontend: Next.js (App Router) UI with protected routes, math gameplay, profile, and an API route that proxies AI requests to the backend.
-- Backend: NestJS API providing authentication, user profile and avatar handling, math/AI endpoints, and static file serving for uploads.
+- **Frontend** (`frontend/`): Next.js UI, protected routes, AI Math game, onboarding /welcome (voice + AI extraction), profile & performance charts, system prompt management, SSE streaming consumers.
+- **Backend** (`backend/`): NestJS API for auth, user profile & avatar upload, performance metrics, AI relay (ask + stream), local ASR proxy, static file serving for uploads.
 
-Key features
+## Current Feature Set
 
-- Cookie‑based JWT auth (login/register/logout) with `GET /user/me` for session checks.
-- Profile and avatar: fetch profile, upload avatar via Data URL, files served under `/uploads`.
-- AI ask: frontend forwards requests to backend AI endpoint via `/api/ask` proxy.
-- CORS with credentials between localhost ports; frontend fetches include cookies.
+- Cookie‑based JWT auth (register, login, logout) with session check `GET /user/me`.
+- Onboarding **Welcome Page**: voice capture -> local ASR (`/ai/local`) -> AI JSON extraction (streamed) -> profile update.
+- AI Math streaming chat/game: SSE live responses with client‑side system prompt injection.
+- Split system prompts: `AI_MATH_SYSTEM_PROMPT` & `WELCOME_SYSTEM_PROMPT` managed purely in frontend (backend no default prompt).
+- Hidden internal gameplay context (model knows controls; only reveals on user request).
+- Performance analytics entity (quizzes taken, correct rate avg, streak logic) surfaced on profile with Recharts graph.
+- Avatar upload via Data URL to `POST /user/avatar`; served from `/uploads`.
+- Secure fetches with `credentials: 'include'` + CORS allowlist.
+- Voice & audio utilities (MediaRecorder -> WAV encoding) for ASR.
+- Streaming standardization: both AI Math and Welcome use `/ai/stream` SSE.
+- Responsive multi‑section homepage (hero, features, CTA) with transparent hide‑on‑scroll nav and animated SVG logo.
 
-Data flow (high level)
+## Architecture Notes
 
-- Auth: Frontend submits credentials to backend; backend sets httpOnly cookie; frontend checks `/user/me` for gated pages.
-- Profile: Frontend loads `/user/profile`; avatar uploads via `POST /user/avatar` (Data URL) → backend saves to `uploads/` and returns `avatarUrl` → frontend renders via full URL.
-- AI: Frontend calls `/api/ask` → proxy relays to backend `/ai/ask` → response streamed back to UI.
+Frontend owns prompt governance; backend only relays provided `system` when present. SSE frames (JSON lines prefixed with `data:`) are parsed incrementally. Voice flow: record -> send blob -> `/ai/local` -> text -> feed into `/ai/stream` with structured prompt instructions.
 
-Folders
+## Data / Flow Summary
 
-- `backend/` NestJS app and API endpoints (serves `/uploads`).
-- `frontend/` Next.js app (UI, API route proxy, pages/components).
+| Flow        | Steps                                                                                                                |
+| ----------- | -------------------------------------------------------------------------------------------------------------------- |
+| Auth        | form -> `/user/login` -> httpOnly cookie -> gated pages check `/user/me`                                             |
+| Onboarding  | mic capture -> `/ai/local` (ASR) -> partial transcript -> `/ai/stream` (extraction) -> parsed JSON -> profile update |
+| AI Math     | user question / voice -> `/ai/stream` (SSE) -> incremental UI update                                                 |
+| Avatar      | client Data URL -> `POST /user/avatar` -> file saved -> URL stored & rendered                                        |
+| Performance | quiz/game events persisted -> aggregated endpoint -> chart                                                           |
 
-## Project status (progress)
+## Folder Structure (simplified)
 
-- Backend (NestJS)
+```
+backend/  # NestJS source (auth, user, ai, performance, uploads)
+frontend/ # Next.js app (app router pages, components, lib prompts)
+```
 
-  - Auth: Cookie‑based JWT login/register/logout, protected routes, `/user/me` working.
-  - Profile: `GET /user/profile`, `POST /user/avatar` (Data URL upload), static `/uploads` serving. Avatar URL persisted on user.
-  - AI: `POST /ai/ask` wired; proxied by frontend API.
-  - CORS: Enabled with credentials for localhost ports and optional `FRONTEND_ORIGIN`.
-  - Build: `npm run build` OK; dev server runs on port 3001 by default.
+## Key Endpoints (Backend)
 
-- Frontend (Next.js App Router)
-  - Auth pages: Login/Register; redirects to `next` param or home on success.
-  - Home, Math game, AI page, Learning Path pages present.
-  - Profile page: Read‑only details fetched from backend, avatar upload, recent activity, and a performance section with a compact SVG graph.
-  - Middleware gating (auth) and credentialed fetches to backend.
-  - Build: `npm run build` OK; dev server on 3000 (falls back if busy).
+Auth:
 
-## How to run (dev)
+- `POST /user/register`
+- `POST /user/login`
+- `POST /user/logout`
+- `GET /user/me`
 
-Open two terminals and run backend and frontend separately.
+Profile / User:
+
+- `GET /user/profile`
+- `POST /user/avatar` (body: `{ imageData: string }` Data URL)
+- `GET /user/performance` (aggregated metrics)
+
+AI & Voice:
+
+- `POST /ai/ask` (non‑stream reply)
+- `POST /ai/stream` (Server‑Sent Events streaming JSON chunks)
+- `POST /ai/local` (local / lightweight ASR)
+
+Frontend Proxy:
+
+- `POST /api/ask` (legacy non‑stream proxy; streaming uses direct backend call)
+
+## Prompts Strategy
+
+- All system prompts live in `frontend/src/lib/prompt.ts`.
+- Backend removed default; only passes through provided `system` field.
+- Gameplay instructions are internally referenced; assistant instructed not to expose unless user explicitly asks.
+
+## Performance Metrics
+
+Entity tracks per‑quiz results; service aggregates:
+
+- `quizzesTaken`
+- `correctRate` average (%)
+- Streak (consecutive >=70% thresholds)
+
+Displayed via Recharts area graph + KPIs on profile page.
+
+## Running Locally (Dev)
+
+Open two terminals.
 
 Backend (NestJS):
 
@@ -66,10 +107,10 @@ npm run dev
 
 Defaults:
 
-- Backend URL: http://localhost:3001
-- Frontend URL: http://localhost:3000 (may switch to 3002 if 3000 is used)
+- Backend: http://localhost:3001
+- Frontend: http://localhost:3000 (Next may pick 3001+/3002 if occupied)
 
-For production builds:
+Production build:
 
 ```powershell
 # Backend
@@ -81,31 +122,41 @@ cd .\frontend; npm run build; npm start
 
 ## Configuration
 
-Environment variables (optional):
+Backend env (optional):
 
-- Backend
-  - `PORT` (default 3001)
-  - `FRONTEND_ORIGIN` (adds to CORS allowlist)
-  - `COOKIE_SECRET` (cookies signing secret)
-  - `BODY_LIMIT` (payload size, default 25mb)
-- Frontend
-  - `NEXT_PUBLIC_BACKEND_URL` (e.g., http://localhost:3001)
+- `PORT` (default 3001)
+- `FRONTEND_ORIGIN` (CORS allow origin)
+- `COOKIE_SECRET` (signing secret)
+- `BODY_LIMIT` (default 25mb)
 
-## Key endpoints
+Frontend env:
 
-- Auth
-  - `POST /user/register`
-  - `POST /user/login`
-  - `POST /user/logout`
-  - `GET /user/me`
-- Profile
-  - `GET /user/profile`
-  - `POST /user/avatar` (body: `{ imageData: string }` Data URL)
-- AI
-  - Backend: `POST /ai/ask`
-  - Frontend proxy: `POST /api/ask`
+- `NEXT_PUBLIC_BACKEND_URL` (e.g. http://localhost:3001)
+
+## Streaming Consumption (Frontend)
+
+SSE responses are parsed line‑by‑line; each `data:` JSON object may contain incremental `delta` text. Client accumulates for AI Math dialogue or onboarding extraction; final JSON parsed for structured profile fields.
+
+## Accessibility / UX
+
+- Keyboard focus styles on interactive elements.
+- Nav hides on scroll down (more screen for content), reappears on upward scroll.
+- High‑contrast gradients & subtle glow for space theme.
+
+## Future Ideas (Backlog)
+
+- Server‑side guard to filter accidental gameplay instruction leakage.
+- Real‑time quiz event stream updating performance live.
+- Offline / PWA support for basic drills.
+- Internationalization & localized prompt variants.
+- Teacher / guardian dashboards.
 
 ## Notes
 
-- Avatar files are saved under `backend/uploads` and served at `/uploads/...`.
-- Frontend requests include credentials; ensure CORS and cookie settings are aligned in development.
+- Avatar files: stored under `backend/uploads` and served at `/uploads/...`.
+- Always include `credentials: 'include'` on auth‑dependent fetches.
+- Keep prompts minimal & explicit; avoid leaking internal control lines.
+
+---
+
+Feel free to extend this README with deployment, database migration, or testing details as those parts evolve.

@@ -201,7 +201,7 @@ export default function Home() {
               <span className="text-pink-300">Explore Modes</span>
               <span className="h-px flex-1 bg-gradient-to-r from-pink-300/50 to-transparent" />
             </h3>
-            <div className="grid gap-8 md:grid-cols-3">
+            <div className="grid gap-8 md:grid-cols-4">
               <Link href="/ai-math" className="group" onClick={playClick}>
                 <div className="relative h-full rounded-2xl p-6 flex flex-col gap-4 border border-white/15 bg-white/5 backdrop-blur-md shadow-xl transition group-hover:border-cyan-300/60 group-hover:shadow-cyan-400/30">
                   <div className="text-4xl">🧠</div>
@@ -244,6 +244,20 @@ export default function Home() {
                   </p>
                   <span className="text-lime-300 text-sm font-medium group-hover:underline">
                     Go →
+                  </span>
+                </div>
+              </Link>
+              <Link href="/learn-ai" className="group" onClick={playClick}>
+                <div className="relative h-full rounded-2xl p-6 flex flex-col gap-4 border border-white/15 bg-white/5 backdrop-blur-md shadow-xl transition group-hover:border-violet-300/60 group-hover:shadow-violet-400/30">
+                  <div className="text-4xl">🤖</div>
+                  <h4 className="text-xl font-semibold text-violet-200">
+                    Learn AI
+                  </h4>
+                  <p className="text-sm text-indigo-50/80 flex-1">
+                    Streaming AI tutor explaining core math concepts with gentle guidance.
+                  </p>
+                  <span className="text-violet-300 text-sm font-medium group-hover:underline">
+                    Explore →
                   </span>
                 </div>
               </Link>
