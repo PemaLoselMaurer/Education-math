@@ -154,14 +154,14 @@ export const NeuralNetworkDemo: React.FC = () => {
         const hSecond = [...heuristic.probs].sort((a, b) => b - a)[1] || 1e-6;
         if (hTop > 0.55 && hTop / (hSecond + 1e-6) > 1.8) {
           // Re‑blend leaning more toward heuristic
-            const beta = 0.55;
-            const fused2 = forward.probs.map(
-              (v, i) =>
-                Math.pow(Math.max(v, 1e-8), 1 - beta) *
-                Math.pow(Math.max(heuristic.probs[i], 1e-8), beta)
-            );
-            const s2 = fused2.reduce((a, b) => a + b, 0);
-            p = fused2.map((v) => v / s2);
+          const beta = 0.55;
+          const fused2 = forward.probs.map(
+            (v, i) =>
+              Math.pow(Math.max(v, 1e-8), 1 - beta) *
+              Math.pow(Math.max(heuristic.probs[i], 1e-8), beta)
+          );
+          const s2 = fused2.reduce((a, b) => a + b, 0);
+          p = fused2.map((v) => v / s2);
         }
       }
     }
@@ -418,7 +418,7 @@ export const NeuralNetworkDemo: React.FC = () => {
           const z2 = Array.from({ length: HIDDEN2 }, (_, j) =>
             h1.reduce((a, v, i) => a + v * W2l[i][j], b2l[j])
           );
-            const h2 = z2.map((v) => (v > 0 ? v : 0));
+          const h2 = z2.map((v) => (v > 0 ? v : 0));
           const logits = Array.from({ length: CLASSES.length }, (_, j) =>
             h2.reduce((a, v, i) => a + v * W3l[i][j], b3l[j])
           );
@@ -1379,7 +1379,8 @@ export const NeuralNetworkDemo: React.FC = () => {
                             {val.toFixed(1)}
                           </text>
                           <title>
-                            Hidden1 {j} act {val.toFixed(4)}{"\n"}Incoming weights: {" "}
+                            Hidden1 {j} act {val.toFixed(4)}
+                            {"\n"}Incoming weights:{" "}
                             {W1.map((r) => r[j].toFixed(2)).join(", ")}
                           </title>
                         </g>
@@ -1413,7 +1414,8 @@ export const NeuralNetworkDemo: React.FC = () => {
                             {val.toFixed(1)}
                           </text>
                           <title>
-                            Hidden2 {j} act {val.toFixed(4)}{"\n"}Incoming weights: {" "}
+                            Hidden2 {j} act {val.toFixed(4)}
+                            {"\n"}Incoming weights:{" "}
                             {W2.map((r) => r[j].toFixed(2)).join(", ")}
                           </title>
                         </g>
@@ -1464,7 +1466,8 @@ export const NeuralNetworkDemo: React.FC = () => {
                             </text>
                           )}
                           <title>
-                            Class {s.label}{"\n"}prob {(prob * 100).toFixed(2)}%
+                            Class {s.label}
+                            {"\n"}prob {(prob * 100).toFixed(2)}%
                           </title>
                         </g>
                       );

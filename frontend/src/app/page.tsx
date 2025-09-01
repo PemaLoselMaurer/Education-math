@@ -254,7 +254,8 @@ export default function Home() {
                     Learn AI
                   </h4>
                   <p className="text-sm text-indigo-50/80 flex-1">
-                    Streaming AI tutor explaining core math concepts with gentle guidance.
+                    Streaming AI tutor explaining core math concepts with gentle
+                    guidance.
                   </p>
                   <span className="text-violet-300 text-sm font-medium group-hover:underline">
                     Explore →
