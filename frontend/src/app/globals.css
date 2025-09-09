@@ -41,9 +41,9 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+/* @custom-variant dark (&:is(.dark *)); */
 
-@theme inline {
+:root {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
@@ -84,7 +84,9 @@
 }
 
 /* Prevent scroll on homepage */
-.no-scroll, html.no-scroll, body.no-scroll {
+.no-scroll,
+html.no-scroll,
+body.no-scroll {
   overflow: hidden !important;
   position: fixed !important;
   width: 100vw !important;
@@ -168,7 +170,7 @@
   }
   html {
     /* Global starfield background */
-    background-image: url('/stars.png');
+    background-image: url("/stars.png");
     background-size: cover;
     background-repeat: no-repeat;
     background-position: center;
