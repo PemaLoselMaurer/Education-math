@@ -294,3 +294,27 @@ data: {"error":"message"}
 ---
 
 Feel free to extend this README with deployment, database migration, or testing details as those parts evolve.
+
+---
+
+## 🐳 Docker Compose Quickstart
+
+To run the entire stack (frontend, backend, Postgres) with a single command:
+
+```powershell
+docker compose up --build
+```
+
+This will:
+
+- Start Postgres (with persistent volume)
+- Build and run the backend (NestJS, port 3001)
+- Build and run the frontend (Next.js, port 3000)
+
+You can stop all services with:
+
+```powershell
+docker compose down
+```
+
+> For production, adjust secrets and use `npm run build`/`npm start` in the service commands.

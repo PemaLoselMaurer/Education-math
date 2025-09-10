@@ -11,13 +11,15 @@ import { ElevenLabsService } from './elevenlabs.service';
   imports: [
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: 'localhost',
-      port: 5432,
-      username: 'postgres',
-      password: 'fl4shsimp',
-      database: 'education_math_db',
+      host: process.env.DB_HOST || 'localhost',
+      port: parseInt(process.env.DB_PORT || '5432', 10),
+      username: process.env.DB_USERNAME || 'postgres',
+      password: process.env.DB_PASSWORD || 'postgres',
+      database: process.env.DB_DATABASE || 'education_math_db',
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      synchronize: true, // Disable in production
+      synchronize: process.env.TYPEORM_SYNC !== 'false', // set TYPEORM_SYNC=false to disable
+      retryAttempts: 10,
+      retryDelay: 3000,
     }),
     UserModule,
   ],
