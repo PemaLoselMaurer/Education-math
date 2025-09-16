@@ -1822,7 +1822,7 @@ function AiMathPage() {
       {/* ...existing code... */}
       {/* Navbar */}
       <nav
-        className="w-full flex items-center justify-between px-6 py-2 rounded-b-[2.5rem] bg-white/50 dark:bg-gray-900/60 shadow-2xl border-b-4 border-blue-200 z-20 relative backdrop-blur-md"
+  className="w-full flex items-center justify-between px-6 py-2 rounded-b-[2.5rem] bg-white/50 shadow-2xl border-b-4 border-blue-200 z-20 relative backdrop-blur-md"
         style={{
           background:
             "linear-gradient(90deg, rgba(236,72,153,0.18) 0%, rgba(59,130,246,0.18) 100%)",

@@ -88,10 +88,10 @@ function MathPageInner() {
 		  zIndex: 1,
 		  background: 'radial-gradient(ellipse at 60% 20%, rgba(59,7,100,0.58) 0%, rgba(24,26,42,0) 80%)',
 		}} />
-	  <nav className="w-full flex items-center justify-between px-6 py-4 min-h-[64px] rounded-b-[2.5rem] bg-white/60 dark:bg-gray-900/60 shadow-xl border-b-4 border-blue-200 z-20 relative backdrop-blur-md" style={{background: 'linear-gradient(90deg, rgba(236,72,153,0.18) 0%, rgba(59,130,246,0.18) 100%)', marginBottom: 0, paddingBottom: 0, marginTop: 0, paddingTop: 0}}>
+	  <nav className="w-full flex items-center justify-between px-6 py-4 min-h-[64px] rounded-b-[2.5rem] bg-white/60 shadow-xl border-b-4 border-blue-200 z-20 relative backdrop-blur-md" style={{background: 'linear-gradient(90deg, rgba(236,72,153,0.18) 0%, rgba(59,130,246,0.18) 100%)', marginBottom: 0, paddingBottom: 0, marginTop: 0, paddingTop: 0}}>
 		  <div className="flex items-center gap-3">
 			<span className="text-3xl select-none">🦉</span>
-			<span className="text-2xl font-extrabold tracking-tight text-blue-600 dark:text-blue-200 drop-shadow font-[Comic Sans MS,Comic Sans,cursive]">
+			<span className="text-2xl font-extrabold tracking-tight text-blue-600 drop-shadow font-[Comic Sans MS,Comic Sans,cursive]">
 			  Space Math Quiz
 			</span>
 		  </div>
@@ -661,10 +661,10 @@ function MathPageInner() {
 				background: 'radial-gradient(ellipse at 60% 20%, rgba(59,7,100,0.58) 0%, rgba(24,26,42,0) 80%)',
 			}} />
 	  {/* Navbar copied from learning-path for consistency */}
-	<nav className="w-full flex items-center justify-between px-6 py-4 min-h-[64px] rounded-b-[2.5rem] bg-white/60 dark:bg-gray-900/60 shadow-xl border-b-4 border-blue-200 z-20 relative backdrop-blur-md" style={{background: 'linear-gradient(90deg, rgba(236,72,153,0.18) 0%, rgba(59,130,246,0.18) 100%)', marginBottom: 0, paddingBottom: 0, marginTop: 0, paddingTop: 0}}>
+	<nav className="w-full flex items-center justify-between px-6 py-4 min-h-[64px] rounded-b-[2.5rem] bg-white/60 shadow-xl border-b-4 border-blue-200 z-20 relative backdrop-blur-md" style={{background: 'linear-gradient(90deg, rgba(236,72,153,0.18) 0%, rgba(59,130,246,0.18) 100%)', marginBottom: 0, paddingBottom: 0, marginTop: 0, paddingTop: 0}}>
 		<div className="flex items-center gap-3">
 		  <span className="text-3xl select-none">🦉</span>
-		  <span className="text-2xl font-extrabold tracking-tight text-blue-600 dark:text-blue-200 drop-shadow font-[Comic Sans MS,Comic Sans,cursive]">
+		  <span className="text-2xl font-extrabold tracking-tight text-blue-600 drop-shadow font-[Comic Sans MS,Comic Sans,cursive]">
 			Math Quest
 		  </span>
 		</div>

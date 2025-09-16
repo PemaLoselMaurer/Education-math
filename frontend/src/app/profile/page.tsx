@@ -191,7 +191,7 @@ export default function ProfilePage() {
 
         {/* Navbar (same visual style as homepage) */}
         <nav
-          className="w-full flex items-center justify-between px-6 py-2 rounded-b-[2.5rem] bg-white/60 dark:bg-gray-900/60 shadow-xl border-b-4 border-blue-200 z-20 relative backdrop-blur-md"
+          className="w-full flex items-center justify-between px-6 py-2 rounded-b-[2.5rem] bg-white/60 shadow-xl border-b-4 border-blue-200 z-20 relative backdrop-blur-md"
           style={{
             background:
               "linear-gradient(90deg, rgba(236,72,153,0.18) 0%, rgba(59,130,246,0.18) 100%)",
@@ -201,7 +201,7 @@ export default function ProfilePage() {
             <span className="text-3xl select-none">🦉</span>
             <Link
               href="/"
-              className="text-2xl font-extrabold tracking-tight text-blue-600 dark:text-blue-200 drop-shadow font-[Comic Sans MS,Comic Sans,cursive]"
+              className="text-2xl font-extrabold tracking-tight text-blue-600 drop-shadow font-[Comic Sans MS,Comic Sans,cursive]"
             >
               Math Quest
             </Link>
@@ -232,7 +232,7 @@ export default function ProfilePage() {
           <div className="mx-auto max-w-5xl grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Left column: Avatar + details + Recent activity */}
             <div className="md:col-span-1 space-y-6">
-              <Card className="bg-white/70 dark:bg-gray-900/60 backdrop-blur">
+              <Card className="bg-white/70 backdrop-blur">
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
                     <Avatar className="size-16">
@@ -324,7 +324,7 @@ export default function ProfilePage() {
               </Card>
 
               {/* Recent activity moved to left column */}
-              <Card className="bg-white/70 dark:bg-gray-900/60 backdrop-blur">
+              <Card className="bg-white/70 backdrop-blur">
                 <CardContent className="pt-6">
                   <h2 className="text-lg font-semibold mb-2">
                     Recent activity
@@ -340,7 +340,7 @@ export default function ProfilePage() {
 
             {/* Right column: Performance (with graph) */}
             <div className="md:col-span-2 space-y-6">
-              <Card className="bg-white/70 dark:bg-gray-900/60 backdrop-blur">
+              <Card className="bg-white/70 backdrop-blur">
                 <CardHeader className="pb-0">
                   <CardTitle className="text-lg">Performance</CardTitle>
                 </CardHeader>

@@ -2,6 +2,8 @@
 
 Full‑stack learning platform combining adaptive AI math assistance, voice onboarding, performance analytics, and a gamified space theme. Backend: NestJS + TypeORM. Frontend: Next.js (App Router) + Tailwind + shadcn UI.
 
+> Note: Dark mode support was intentionally removed (September 2025) to simplify styling and performance. All `dark:` Tailwind variants and the `.dark { ... }` CSS variable overrides were deleted; the design is now single‑palette (light). To re‑enable dark mode later, reintroduce a `.dark` variable block in `frontend/src/app/globals.css` and restore `dark:` utility variants where desired, or configure Tailwind's `darkMode` and wrap the app root with a theme toggle.
+
 ## Overview
 
 Two services:
